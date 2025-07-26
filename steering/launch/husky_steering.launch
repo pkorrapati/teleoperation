@@ -4,13 +4,11 @@
         <!-- <param name="dev" type="str" value="/dev/input/js0" /> -->
     </node>
     
-    <node pkg="steering" type="Circadian.py" name="circadian">
-        <param name="pulseRate" type="int" value="1000" />
-    </node>
-    
-    <node pkg="steering" output="Steering.py" name="steering">
-        <param name="cmd_topic" type="str" value="/husky_velocity_controller/cmd_vel" />
-        <param name="max_lin_vel" type="double" value="0.2" />
-        <param name="max_rot_vel" type="double" value="0.2" />
-    </node>
+    <param name="pulseRate" type="int" value="1000" />
+    <param name="cmd_topic" type="str" value="/husky_velocity_controller/cmd_vel" />
+    <param name="max_lin_vel" type="double" value="0.2" />
+    <param name="max_rot_vel" type="double" value="0.2" />
+
+    <node pkg="steering" type="Circadian.py" name="circadian" />
+    <node pkg="steering" type="Steering.py" name="steering" />
 </launch>

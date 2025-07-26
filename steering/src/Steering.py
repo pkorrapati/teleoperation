@@ -5,11 +5,11 @@ from dataclasses import dataclass
 
 from std_msgs.msg import Bool, Int8, Int16, Float32
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Joy, JoyFeedback
+from sensor_msgs.msg import Joy
 
-MAX_LIN_VEL = rospy.get_param('~max_lin_vel', 0.2)
-MAX_ROT_VEL = rospy.get_param('~max_rot_vel', 0.2)
-CMD_VEL_TOPIC = rospy.get_param('~cmd_topic', '/cmd_vel')
+MAX_LIN_VEL = rospy.get_param('/max_lin_vel', 0.2)
+MAX_ROT_VEL = rospy.get_param('/max_rot_vel', 0.2)
+CMD_VEL_TOPIC = rospy.get_param('/cmd_topic', '/cmd_vel')
 
 @dataclass
 class AXIS_INDX:
