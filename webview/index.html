@@ -1,0 +1,247 @@
+<!doctype html>
+<!--<html class="no-js svg" lang="en" dir="ltr">-->
+<html class="js svg" lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Robot Teleop</title>
+
+        <link rel="stylesheet" href='css/foundation-icons.css'>
+        <link rel="stylesheet" href='css/index.css'>
+        <script src="js/jquery-3.7.1.min.js"></script>
+        <script src="js/roslib.js"></script>
+        <script src="js/numeric.min.js"></script>
+
+        <script> 
+            function setNeedle(r){
+                r = (r > 1) ? 1 : ((r < 0) ? 0 : r);
+
+                MIN_ANG = -135;
+                MAX_ANG = 135;
+
+                ang = MIN_ANG + r * (MAX_ANG - MIN_ANG);
+
+                $('#needle').get(0).style.setProperty('transform', 'rotateZ(' + ang + 'deg) translateY(-30px)');
+            }
+
+            function setNorth(ang) {                
+                $('#compassRotor').get(0).style.setProperty('transform', 'rotateZ(' + ang + 'deg)');                
+            }
+
+            function fillCanvas(ctx, dists, minAng=-Math.PI, maxAng=Math.PI) {
+                
+                ctx.clearRect(0,0,canvasW, canvasH)
+                var th = numeric.linspace(minAng, maxAng, dists.length);  
+                var x = 0;
+                var y = 0;              
+                
+                for (i=0; i<th.length; i++) {
+                    ctx.fillStyle = '#fff';
+                    // var d = Math.random() * 50 + 30;
+                    x = 70 * dists[i] * Math.cos(-th[i] - (Math.PI/2)) + canvasW/2;
+                    y = 70 * dists[i] * Math.sin(-th[i] - (Math.PI/2)) + canvasH/2;              
+                    
+                    ctx.fillRect(x, y, 1, 1);                                
+                }
+            }
+            
+            $('document').ready(function() { 
+                image = $("#cameraStream");
+
+                canvasW = $("#lidarVisual").width();
+                canvasH = $("#lidarVisual").height();
+                
+                $("#lidarVisual").get(0).setAttribute("width", canvasW);
+                $("#lidarVisual").get(0).setAttribute("height", canvasH);
+
+                lidarCanvas = $("#lidarVisual").get(0).getContext("2d");
+                fillCanvas(lidarCanvas, [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]);
+
+                $('.ticks > .tick').each(function(i, e){ e.style.setProperty('transform', 'rotateZ(' + ((i*5.4) + 135) + 'deg) translate(65px)'); })
+                setNeedle(0);
+                
+             });             
+
+            const ros = new ROSLIB.Ros({ url: "ws://localhost:9090" });
+            // const my_topic_listener = new ROSLIB.Topic({ros, name: '/pulse', messageType: 'std_msgs/Int8'});
+            // const onAccel = new ROSLIB.Topic({ros, name: '/cmd_vel', messageType: 'geometry_msgs/Twist'});
+            const onAccel = new ROSLIB.Topic({ros, name: '/steer/throttle', messageType: 'std_msgs/Float32'});
+            const onEgo = new ROSLIB.Topic({ros, name: '/hunter_status', messageType: 'hunter_msgs/HunterStatus'});
+            const onGear = new ROSLIB.Topic({ros, name: '/steer/gear', messageType: 'std_msgs/Int8'});
+            // const onCamera = new ROSLIB.Topic({ros, name: '/cam_node/image_raw/compressed', messageType: 'sensor_msgs/CompressedImage'});
+            const onCamera = new ROSLIB.Topic({ros, name: '/steer/cam_feed', messageType: 'sensor_msgs/CompressedImage'});
+            const onLidar = new ROSLIB.Topic({ros, name: '/scan', messageType: 'sensor_msgs/LaserScan'});
+            
+            var appClock = null;
+            var pulseRate = 0;
+            var pulse = false;
+            var pulseCount = 0;
+            var vendorURL = window.URL || window.webkitURL;
+            var image = null;
+            var lidarCanvas = null;        
+            var canvasW = 0;
+            var canvasH = 0;    
+
+            var clockTick = function() {
+                if (pulse) {                               
+                    $('#heart').toggleClass('alive');
+                    pulseCount+=1;
+
+                    if (pulseCount >= 2) {
+                        pulseCount = 0;
+                        pulse = false;
+                        $('#heart').removeClass('alive');
+                    }
+                }
+            }
+            
+            var beginClock = function() {
+                if ((appClock == null) && (pulseRate > 0)) {
+                    tDelay = 1000/(pulseRate * 2);
+                    appClock = setInterval(clockTick, tDelay);
+                }
+                else if ((appClock != null) && (pulseRate <= 0)) {
+                    appClock = null;                    
+                }
+            }
+            
+            ros.on("connection", () => {   
+                $('#rosConnect').removeClass('down').addClass('live');
+            });
+
+            ros.on("close", () => {
+                $('#rosConnect').removeClass('live').addClass('down');                           
+                
+                if (appClock != null) {
+                    appClock = null;
+                    pulseRate = 0;
+                }
+            });            
+
+            onAccel.subscribe((msg) => {
+                console.log(1)                
+                setNeedle(msg.data);
+            });
+
+            onEgo.subscribe((msg) => {                               
+                $('#velDisplay').text(msg.linear_velocity.toFixed(2)) 
+            });
+
+            onGear.subscribe((msg) => {                
+                indx = msg.data;
+                
+                $('#gears .button').removeClass('selected');
+                $('#gears .button').eq(indx).addClass('selected');
+            });
+
+            onCamera.subscribe((msg) => {                  
+                if (image != null) {
+                    image.attr("src", "data:image/jpg;base64," + msg.data)
+                }
+            });
+
+            onLidar.subscribe((msg) => {
+                dists = Array.from(msg.ranges, c => c || msg.range_max);
+                // a = Array.from(a, c=>c || 0 )       
+                fillCanvas(lidarCanvas, dists, msg.angle_min, msg.angle_max);           
+                // console.log(msg.ranges)
+            });
+
+        </script>
+    </head>
+    <body>        
+        <div class="display-container">
+            <img class="vid-img" id="cameraStream">
+        </div>
+        <div class="compass">            
+            <canvas class="lidar-visual" id="lidarVisual">
+
+            </canvas>
+            <div class="rotor" id="compassRotor"> 
+                <span class="north"><i class="fi-play"></i></span>
+            </div>            
+        </div>
+        
+        <div class="gage-container">
+            <div class="outer-circ"></div>
+            <div class="inner-circ"></div>
+            <div id="needle"></div>
+            <span id="velDisplay" class="velo">0</span>
+            <div class="ticks">
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+                <div class="tick"></div>
+
+                <div class="tick"></div>
+            </div>
+        </div>
+        <div class="button-container">
+            <ul class="buttons" id="gears">
+                <li><a class="button">R</a></li>
+                <li><a class="button selected">P</a></li>                
+                <li><a class="button">1</a></li>
+                <li><a class="button">2</a></li>
+            </ul>
+        </div>
+        <!-- <div class="stat-container">
+            <a class="back-disk">&nbsp;</a>                       
+		    <a style="transform: rotateZ(-75deg) translateX(60px);" class="mini-cap down" id="rosConnect" title="ROSConnection"></a>			
+            <a style="transform: rotateZ(-60deg) translateX(60px);" class="mini-cap down" title="lol"></a>			
+		    <a style="transform: rotateZ(-45deg) translateX(60px);" class="mini-cap live"></a>
+		    <a style="transform: rotateZ(-30deg) translateX(60px);" class="mini-cap"></a>
+            <a class="center-disk" id="heart">&nbsp;</a>
+        </div>         -->
+    </body>
+</html>
