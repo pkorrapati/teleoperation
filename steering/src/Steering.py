@@ -7,9 +7,9 @@ from std_msgs.msg import Bool, Int8, Int16, Float32
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Joy
 
-MAX_LIN_VEL = rospy.get_param('/max_lin_vel', 0.2)
-MAX_ROT_VEL = rospy.get_param('/max_rot_vel', 0.2)
-CMD_VEL_TOPIC = rospy.get_param('/cmd_topic', '/cmd_vel')
+MAX_LIN_VEL = 0.2
+MAX_ROT_VEL = 0.2 
+CMD_VEL_TOPIC = '/cmd_vel'
 
 @dataclass
 class AXIS_INDX:
@@ -41,26 +41,30 @@ def limit(value, lLim, uLim):
 
 class Steering:
     def __init__(self):        
-        rospy.init_node('steering', anonymous=True)
-                
+        global MAX_LIN_VEL, MAX_ROT_VEL, CMD_VEL_TOPIC
+        self.ns = rospy.get_namespace()
         self.vel = Twist()      # Actual control commands
         self.selectedGear = Int8()
         self.throttle = Float32()
 
-        # self.rev = False # Reverse
-        
         self.gear = GEAR_INDX.GEAR_PARK
         self.selectedGear.data = self.gear
         self.buttonHigh = False
 
+        rospy.init_node('steering', anonymous=True)   
+
+        MAX_LIN_VEL = rospy.get_param('~max_lin_vel', 0.2)
+        MAX_ROT_VEL = rospy.get_param('~max_rot_vel', 0.2)
+        CMD_VEL_TOPIC = rospy.get_param('~cmd_topic', '/cmd_vel')     
+        
         # Subscribers
-        self.sub_pulse = rospy.Subscriber('/pulse', Int16, self.mobilize)
-        self.sub_input = rospy.Subscriber('/joy', Joy, self.input)       # Subscribe to Joy                
+        self.sub_pulse = rospy.Subscriber(self.ns + 'pulse', Int16, self.mobilize)
+        self.sub_input = rospy.Subscriber(self.ns + 'joy', Joy, self.input)       # Subscribe to Joy                
     
         # Publishers
         self.pub_motion = rospy.Publisher(CMD_VEL_TOPIC, Twist, queue_size=3)
-        self.pub_gear = rospy.Publisher('/gear', Int8, queue_size=2)
-        self.pub_throttle = rospy.Publisher('/throttle', Float32, queue_size=2)
+        self.pub_gear = rospy.Publisher(self.ns + 'gear', Int8, queue_size=2)
+        self.pub_throttle = rospy.Publisher(self.ns + 'throttle', Float32, queue_size=2)
 
         self.pub_gear.publish(self.selectedGear)
 

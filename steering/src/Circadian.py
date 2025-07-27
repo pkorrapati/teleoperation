@@ -7,33 +7,34 @@ from std_msgs.msg import Int16
 pulseRate = 1000
 
 class Circadian:
-    def __init__(self, beatsPerSecond=100):
-        # Creates a unique node 'motor_cortex' by using anonymous=True
-        rospy.init_node('circadian', anonymous=True)
-
-        self.rate = rospy.Rate(beatsPerSecond)
-        self.isAlive = False     
-        
+    def __init__(self):        
+        self.ns = rospy.get_namespace()
         self.pulse = Int16()
-        self.pulse.data = beatsPerSecond
+        
+        rospy.init_node('circadian')
+        
+        pulse = rospy.get_param('~pulseRate', default=pulseRate)        
+
+        self.rate = rospy.Rate(pulse)
+        self.pulse.data = pulse
+        self.isAlive = False
 
         # Publishers
-        self.pub_rate = rospy.Publisher('/pulse', Int16, queue_size=3)        
+        self.pub_pulse = rospy.Publisher(self.ns + 'pulse', Int16, queue_size=3)        
 
     def stay_alive(self):
         if not self.isAlive:
             self.isAlive = True
 
         while not rospy.is_shutdown():
-            self.pub_rate.publish(self.pulse)
+            self.pub_pulse.publish(self.pulse)
             self.rate.sleep()  
 
         self.isAlive = False      
 
 if __name__ == '__main__':
     try:
-        pulse = rospy.get_param('~pulseRate', default=pulseRate)
-        cNode = Circadian(pulse)
+        cNode = Circadian()        
         cNode.stay_alive()
 
     except rospy.ROSInterruptException:
