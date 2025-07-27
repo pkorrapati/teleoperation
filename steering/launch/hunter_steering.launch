@@ -10,11 +10,11 @@
         </node>
 
         <node pkg="steering" type="Steering.py" name="steering">
-            <param name="cmd_topic" type="str" value="/husky_velocity_controller/cmd_vel" />
-            <param name="max_lin_vel" type="double" value="1.0" />
-            <param name="max_rot_vel" type="double" value="0.2" />
+            <param name="cmd_topic" type="str" value="/cmd_vel" />
+            <param name="max_lin_vel" type="double" value="1.5" />
+            <param name="max_rot_vel" type="double" value="0.461" />
         </node>
     </group>
 
-    <remap from="/axis_cam/image_raw/compressed" to="/steer/cam_feed" />
+    <remap from="/cam_node/image_raw/compressed" to="/steer/cam_feed" />
 </launch>

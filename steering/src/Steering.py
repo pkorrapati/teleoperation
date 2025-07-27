@@ -97,17 +97,18 @@ class Steering:
 
         self.throttle.data = acc
 
-        mul = 0
+        mulx = 0
+        mulz = 0 if (self.gear == GEAR_INDX.GEAR_PARK) else 1
 
         if self.gear == GEAR_INDX.GEAR_REVERSE:
-            mul = -1.0
+            mulx = -MAX_LIN_VEL
         elif self.gear == GEAR_INDX.GEAR_ONE:
-            mul = 2 * MAX_LIN_VEL / 3
+            mulx = 2 * MAX_LIN_VEL / 3
         elif self.gear == GEAR_INDX.GEAR_TWO:
-            mul = MAX_LIN_VEL
+            mulx = MAX_LIN_VEL
 
-        self.vel.linear.x = mul * acc
-        self.vel.angular.z = d * MAX_ROT_VEL
+        self.vel.linear.x = mulx * acc
+        self.vel.angular.z = mulz * d * MAX_ROT_VEL
 
         self.pub_throttle.publish(self.throttle)        
         
