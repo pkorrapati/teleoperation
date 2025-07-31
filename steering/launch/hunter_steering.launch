@@ -5,16 +5,20 @@
             <!-- <param name="dev" type="str" value="/dev/input/js0" /> -->
         </node>
         
-        <node pkg="steering" type="Circadian.py" name="circadian">
+        <node pkg="steering" type="circadian.py" name="circadian">
             <param name="pulseRate" type="int" value="1000" />
         </node>
 
-        <node pkg="steering" type="Steering.py" name="steering">
+        <node pkg="steering" type="camfeed.py" name="camfeed">
+            <param name="camTopic" type="str" value="/cam_node/image_raw/compressed" />
+        </node>
+
+        <node pkg="steering" type="steering.py" name="steering">
             <param name="cmd_topic" type="str" value="/cmd_vel" />
             <param name="max_lin_vel" type="double" value="1.5" />
             <param name="max_rot_vel" type="double" value="0.461" />
         </node>
     </group>
 
-    <remap from="/cam_node/image_raw/compressed" to="/steer/cam_feed" />
+    <!-- <remap from="/cam_node/image_raw/compressed" to="/steer/cam_feed" /> -->
 </launch>
