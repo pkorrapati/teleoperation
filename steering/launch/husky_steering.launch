@@ -16,5 +16,5 @@
         </node>
     </group>
 
-    <remap from="/axis_cam/image_raw/compressed" to="/steer/cam_feed" />
+    <remap from="/axis/image_raw/compressed" to="/steer/cam_feed" />
 </launch>
