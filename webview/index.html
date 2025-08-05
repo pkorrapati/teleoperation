@@ -48,6 +48,7 @@
             
             $('document').ready(function() { 
                 image = $("#cameraStream");
+                rearImage = $('#rearStream');
 
                 canvasW = $("#lidarVisual").width();
                 canvasH = $("#lidarVisual").height();
@@ -71,6 +72,7 @@
             const onGear = new ROSLIB.Topic({ros, name: '/steer/gear', messageType: 'std_msgs/Int8'});
             // const onCamera = new ROSLIB.Topic({ros, name: '/cam_node/image_raw/compressed', messageType: 'sensor_msgs/CompressedImage'});
             const onCamera = new ROSLIB.Topic({ros, name: '/steer/cam_feed', messageType: 'sensor_msgs/CompressedImage'});
+            const onRearCamera = new ROSLIB.Topic({ros, name: '/steer/rear_feed', messageType: 'sensor_msgs/CompressedImage'});
             const onLidar = new ROSLIB.Topic({ros, name: '/scan', messageType: 'sensor_msgs/LaserScan'});
             
             var appClock = null;
@@ -79,9 +81,11 @@
             var pulseCount = 0;
             var vendorURL = window.URL || window.webkitURL;
             var image = null;
+            var rearImage = null;
             var lidarCanvas = null;        
             var canvasW = 0;
             var canvasH = 0;    
+            var indx = 1;
 
             var clockTick = function() {
                 if (pulse) {                               
@@ -133,10 +137,26 @@
                 
                 $('#gears .button').removeClass('selected');
                 $('#gears .button').eq(indx).addClass('selected');
+
+                if (indx) {
+                    $('#rearMirror').removeClass('hidden');
+                } else {
+                    $('#rearMirror').addClass('hidden');
+                }                
             });
 
             onCamera.subscribe((msg) => {                  
-                if (image != null) {
+                if (indx && image != null) {
+                    image.attr("src", "data:image/jpg;base64," + msg.data)                    
+                }
+            });
+
+            onRearCamera.subscribe((msg) => {                  
+                if (indx && rearImage != null) {
+                    rearImage.attr("src", "data:image/jpg;base64," + msg.data)
+                } 
+                
+                else if(!indx && image != null) {
                     image.attr("src", "data:image/jpg;base64," + msg.data)
                 }
             });
@@ -168,62 +188,7 @@
             <div class="inner-circ"></div>
             <div id="needle"></div>
             <span id="velDisplay" class="velo">0</span>
-            <div class="ticks">
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-                <div class="tick"></div>
-
+            <div class="ticks" id="tickContainer">
                 <div class="tick"></div>
             </div>
         </div>
@@ -234,14 +199,21 @@
                 <li><a class="button">1</a></li>
                 <li><a class="button">2</a></li>
             </ul>
-        </div>
-        <!-- <div class="stat-container">
-            <a class="back-disk">&nbsp;</a>                       
-		    <a style="transform: rotateZ(-75deg) translateX(60px);" class="mini-cap down" id="rosConnect" title="ROSConnection"></a>			
-            <a style="transform: rotateZ(-60deg) translateX(60px);" class="mini-cap down" title="lol"></a>			
-		    <a style="transform: rotateZ(-45deg) translateX(60px);" class="mini-cap live"></a>
-		    <a style="transform: rotateZ(-30deg) translateX(60px);" class="mini-cap"></a>
-            <a class="center-disk" id="heart">&nbsp;</a>
-        </div>         -->
+        </div>        
+
+        <div class="mirror-container" id="rearMirror">
+            <img class="rear-img" id="rearStream">            
+        </div>        
+
+        <script>    
+            const list = document.getElementById('tickContainer');
+
+            // Use a for loop to create list items
+            for (let i = 0; i < 50; i++) {
+                const listItem = document.createElement('div');
+                listItem.classList.add("tick");
+                list.appendChild(listItem);
+            }
+        </script>
     </body>
 </html>

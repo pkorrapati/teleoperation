@@ -13,6 +13,7 @@
 
         <node pkg="steering" type="camfeed.py" name="camfeed">
             <param name="camTopic" type="str" value="/axis/image_raw/compressed" />
+            <param name="rearCamTopic" type="str" value="/usb_cam/image_raw/compressed" />
         </node>
 
         <node pkg="steering" type="steering.py" name="steering">

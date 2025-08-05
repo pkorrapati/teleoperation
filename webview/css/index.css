@@ -24,6 +24,32 @@ body {display: flex; background: #222; min-height: 100%; margin: 0; border: 0; p
     display: block;
 }
 
+.mirror-container{
+    display: flex;
+    position: absolute;
+    justify-content: center; 
+    align-items: center;
+    height: 10%;
+    min-height: 10%;        
+    top: 0;
+    aspect-ratio: 3 / 1;    
+    overflow: hidden;     
+    box-sizing: border-box;  
+    border: 1px solid #444;
+    border-radius: 3vh;
+    box-shadow: 0 0 15px rgba(200, 200, 200,0.3);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.rear-img{    
+    width: 100%;
+    margin: 0 auto;
+    display: block;    
+}
+
 .button-container{
     display: inline-flex; 
     position: absolute; 
