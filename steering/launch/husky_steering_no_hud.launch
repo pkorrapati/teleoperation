@@ -1,0 +1,5 @@
+<launch>
+    <include file="$(find steering)/launch/husky_steering.launch">
+        <arg name="hud" default="false"/>
+    </include>
+</launch>

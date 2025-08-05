@@ -1,4 +1,6 @@
 <launch>
+    <arg name="hud" default="true"/>
+
     <group ns="steer">
         <node pkg="joy" type="joy_node" name="joy_node">
             <param name="default_trig_val" type="bool" value="true" />
@@ -18,6 +20,10 @@
             <param name="max_lin_vel" type="double" value="1.0" />
             <param name="max_rot_vel" type="double" value="0.2" />
         </node>
+    </group>
+
+    <group if="$(arg hud)">
+        <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
     </group>
 
     <!-- <remap from="/axis/image_raw/compressed" to="/steer/cam_feed" /> -->
