@@ -4,19 +4,15 @@ import rospy
 from dataclasses import dataclass
 
 from evdev import InputDevice, ecodes, ff
-from steering.msg import SteerCtl
+from steering_data.msg import SteerCtl
 
 @dataclass
 class DEVICE:
-    NAME = "/dev/input/event14"
-    LOOP_RATE = 0.1    
+    NAME = "/dev/input/event20"
+    TIME_STEP = 0.1    
     TOLERANCE = 0.01
-    MAX_TORQUE = 1.0
+    MAX_TORQUE = 1.0 #2.5N-m
     MIN_TORQUE = 0.2
-    
-# class SteerCtl:
-#     position = 0
-#     springrate = 0
 
 # Returns a value between lLim and uLim
 def limit(value, lLim, uLim):
@@ -30,7 +26,7 @@ class SteeringFeedback:
         rospy.init_node("steering_feedback")
 
         DEVICE.NAME = rospy.get_param("~device_name", DEVICE.NAME)
-        DEVICE.LOOP_RATE = rospy.get_param("~rate", DEVICE.LOOP_RATE)        
+        DEVICE.TIME_STEP = limit(rospy.get_param("~rate", DEVICE.TIME_STEP), 0.001, 32.767) # uInt limits
         DEVICE.TOLERANCE = rospy.get_param("~tolerance", DEVICE.TOLERANCE)
 
         DEVICE.MIN_TORQUE = rospy.get_param("~min_torque", DEVICE.MIN_TORQUE)
@@ -54,19 +50,18 @@ class SteeringFeedback:
 
         # Create and upload force feedback effect
         self.effect = ff.Effect(
-            ecodes.FF_CONSTANT,
-            -1,
-            ff.Trigger(0, 0),
-            ff.Replay(0xffff, 0),
-            ff.Constant(level=0, envelope=ff.Envelope(0, 0, 0, 0)),
-            direction=0xC000
+            type = ecodes.FF_CONSTANT,
+            id = -1,
+            direction = 0xC000,
+            ff_replay = ff.Replay(0xffff, 0),
+            u = ff.EffectType(ff_constant_effect=ff.Constant(level=0, envelope=ff.Envelope(0, 0, 0, 0)))
         )
 
         self.effect_id = self.device.upload_effect(self.effect)
         self.device.write(ecodes.EV_FF, self.effect_id, 1)
 
         rospy.Subscriber(self.ns + "steer_feeback", SteerCtl, self.steer_feedback)
-        rospy.Timer(rospy.Duration(DEVICE.LOOP_RATE), self.loop)
+        rospy.Timer(rospy.Duration(DEVICE.TIME_STEP), self.loop)
     
     def steer_feedback(self, msg):        
         if not self.p_des == msg.position or self.k_des == msg.springrate:                    
@@ -85,27 +80,39 @@ class SteeringFeedback:
         p_err = p_des - p_act
         dp_err = p_err - p_err_old
         
-        mul = 1 if p_err >= 0 else -1       
-
         t_corr = 0
-        attack_length = 0
+        atk_len = 0
 
         if abs(p_err) > DEVICE.TOLERANCE:
-            t_corr = mul * limit(k * abs(p_err), DEVICE.MIN_TORQUE, DEVICE.MAX_TORQUE)
-            attack_length = DEVICE.LOOP_RATE
+            atk_len = DEVICE.TIME_STEP / 10
+
+            mul = 1 if p_err >= 0 else -1
+
+            t_des = k * (p_err - 0.8 * dp_err)
+            t_corr = mul * limit(abs(t_des), DEVICE.MIN_TORQUE, DEVICE.MAX_TORQUE)
+                    
+        return p_err, t_corr, atk_len
+
+    # effect id must always be -1 to be considered a new effect       
+    # Range of valid values for level is -0x7FFF to +0x7FFF
+    # Range of valid values for attack_level is 0x0000 to 0x7FFF 
+    # Units for attack_length is milliseconds and values must lie between 0x0000 to 0x7FFF ms
+    # Valid values for direction are 0x0000, 0x4000, 0x8000, 0xC000 => down, left, up, right
+    # t_norm is in the range -1.0 to +1.0
+    # atl_len is in the range 0 to 32.767
+    def setTorque(self, t_norm, atk_len):
+        self.effect.direction = 0xC000
+        self.effect.u.ff_constant.level = int(0x7FFF * t_norm)
+        self.effect.u.ff_constant.ff_envelope.attack_level = 0
+        self.effect.u.ff_constant.ff_envelope.attack_length = int(atk_len * 1000) #milliseconds
+        self.effect.u.ff_constant.ff_envelope.fade_level = 0
+        self.effect.u.ff_constant.ff_envelope.fade_length = int(atk_len * 1000)   #milliseconds
         
-        return p_err, t_corr, attack_length
-
-    def setTorque(self, t_corr, attack_length):
-        torque_level = int(0x7FFF * t_corr)
-        self.effect.u.constant.level = torque_level
-        self.effect.u.constant.envelope.attack_length = int(attack_length * 1000)
-        self.effect.u.constant.envelope.fade_length = int(attack_length * 1000)
-
         try:
             self.device.erase_effect(self.effect_id)
             self.effect_id = self.device.upload_effect(self.effect)
             self.device.write(ecodes.EV_FF, self.effect_id, 1)
+
         except Exception as e:
             rospy.logerr(f"Failed to upload force effect: {e}")
 
@@ -116,3 +123,8 @@ if __name__ == "__main__":
 
     except rospy.ROSInterruptException:
         pass
+
+# References
+# https://www.kernel.org/doc/html/latest/input/ff.html
+# https://github.com/torvalds/linux/blob/master/include/uapi/linux/input.h
+# https://stackoverflow.com/questions/33201711/how-to-send-a-rumble-effect-to-a-device-using-python-evdev
