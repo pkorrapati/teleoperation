@@ -65,7 +65,7 @@ class SteeringFeedback:
     
     def steer_feedback(self, msg):        
         if not self.p_des == msg.position or self.k_des == msg.springrate:                    
-            self.p_des = msg.position
+            self.p_des = limit(msg.position, -1.0, 1.0)
             self.k_des = abs(msg.springrate)                        
         
     def loop(self, _):
