@@ -7,6 +7,7 @@ The folder 'steering' is the ROS package that has to be copied into your ros_ws/
 ```console
 cd {your_ros_ws}/src
 ln -s {downloads}/teleoperation/steering
+ln -s {downloads}/teleoperation/steering_data
 ```
 
 ## GIT Package Dependencies:
@@ -56,6 +57,15 @@ sudo apt install ros-<distro>-rosbridge-suite
 
 sudo apt install ros-<distro>-joystick-drivers
 ```
+
+## Updating the launch file
+List connected devices using the following command:
+
+```console
+cat /proc/bus/input/devices
+```
+Identify Logitech G29 in the list of devices and note its handlers. <br />Example: event7.<br />
+Update the value of the param "deviceName" in the launch file to: "/dev/input/event7".
 
 ## Launching
 ### Husky with HUD
