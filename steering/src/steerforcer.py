@@ -26,17 +26,17 @@ class SteeringFeedback:
         rospy.init_node("steering_feedback")
 
         DEVICE.NAME = rospy.get_param("~device_name", DEVICE.NAME)
-        DEVICE.TIME_STEP = limit(rospy.get_param("~rate", DEVICE.TIME_STEP), 0.001, 32.767) # uInt limits
+        DEVICE.TIME_STEP = limit(rospy.get_param("~time_step", DEVICE.TIME_STEP), 0.001, 32.767) # uInt limits
         DEVICE.TOLERANCE = rospy.get_param("~tolerance", DEVICE.TOLERANCE)
 
         DEVICE.MIN_TORQUE = rospy.get_param("~min_torque", DEVICE.MIN_TORQUE)
         DEVICE.MAX_TORQUE = rospy.get_param("~max_torque", DEVICE.MAX_TORQUE)
 
-        self.p_des = 0 # Desired Positon 
-        self.p_err = 0               
-
+        self.p_des = 0 # Desired Positon                    
         self.k_des = 1 # Spring rate
-        self.t_corr = 0 # Correcting Torque
+        
+        self.t_corr = 0
+        self.atk_len = 0
         
         self.device = InputDevice(DEVICE.NAME)        
         self.axis_code = ecodes.ABS_X
@@ -64,7 +64,7 @@ class SteeringFeedback:
         rospy.Timer(rospy.Duration(DEVICE.TIME_STEP), self.loop)
     
     def steer_feedback(self, msg):        
-        if not self.p_des == msg.position or self.k_des == msg.springrate:                    
+        if not self.p_des == msg.position or self.k_des == abs(msg.springrate):
             self.p_des = limit(msg.position, -1.0, 1.0)
             self.k_des = abs(msg.springrate)                        
         
@@ -72,26 +72,22 @@ class SteeringFeedback:
         p_raw = self.device.absinfo(self.axis_code)
         p_act = (2 * (p_raw.value - (self.axis_max + self.axis_min) * 0.5) / (self.axis_max - self.axis_min))
 
-        self.p_err, t_corr, attack_length = self.getTorque(p_act, self.p_des, self.k_des, self.p_err)
+        self.getTorque(p_act)
+        self.setTorque(self.t_corr, self.atk_len)
 
-        self.setTorque(t_corr, attack_length)
-
-    def getTorque(self, p_des, p_act, k, p_err_old):
-        p_err = p_des - p_act
-        dp_err = p_err - p_err_old
+    def getTorque(self, p_act):        
+        p_err = self.p_des - p_act        
         
-        t_corr = 0
-        atk_len = 0
+        self.t_corr = 0
+        self.atk_len = 0
 
         if abs(p_err) > DEVICE.TOLERANCE:
-            atk_len = DEVICE.TIME_STEP / 10
-
             mul = 1 if p_err >= 0 else -1
 
-            t_des = k * (p_err - 0.8 * dp_err)
-            t_corr = mul * limit(abs(t_des), DEVICE.MIN_TORQUE, DEVICE.MAX_TORQUE)
-                    
-        return p_err, t_corr, atk_len
+            t_des = self.k_des * p_err
+
+            self.t_corr = -1 * mul * limit(abs(t_des), DEVICE.MIN_TORQUE, DEVICE.MAX_TORQUE)
+            self.atk_len = DEVICE.TIME_STEP / 10
 
     # effect id must always be -1 to be considered a new effect       
     # Range of valid values for level is -0x7FFF to +0x7FFF
@@ -101,12 +97,12 @@ class SteeringFeedback:
     # t_norm is in the range -1.0 to +1.0
     # atl_len is in the range 0 to 32.767
     def setTorque(self, t_norm, atk_len):
-        self.effect.direction = 0xC000
-        self.effect.u.ff_constant.level = int(0x7FFF * t_norm)
-        self.effect.u.ff_constant.ff_envelope.attack_level = 0
-        self.effect.u.ff_constant.ff_envelope.attack_length = int(atk_len * 1000) #milliseconds
-        self.effect.u.ff_constant.ff_envelope.fade_level = 0
-        self.effect.u.ff_constant.ff_envelope.fade_length = int(atk_len * 1000)   #milliseconds
+        # self.effect.direction = 0xC000
+        self.effect.u.ff_constant_effect.level = int(0x7FFF * t_norm)
+        # self.effect.u.ff_constant_effect.ff_envelope.attack_level = 0
+        self.effect.u.ff_constant_effect.ff_envelope.attack_length = int(atk_len * 1000) #milliseconds
+        # self.effect.u.ff_constant_effect.ff_envelope.fade_level = 0
+        self.effect.u.ff_constant_effect.ff_envelope.fade_length = int(atk_len * 1000)   #milliseconds
         
         try:
             self.device.erase_effect(self.effect_id)
