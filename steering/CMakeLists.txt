@@ -24,5 +24,5 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(steerForce src/steerforce.cpp)
-target_link_libraries(steerForce ${catkin_LIBRARIES})
+add_executable(steerforce src/steerforce.cpp)
+target_link_libraries(steerforce ${catkin_LIBRARIES})

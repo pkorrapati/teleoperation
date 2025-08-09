@@ -17,8 +17,8 @@ private:
     std::string DEVICE_NAME = "/dev/input/event20";
     double DEVICE_TIME_STEP = 0.1;
     double DEVICE_TOLERANCE = 0.01;
-    double DEVICE_MAX_TORQUE = 1.0;
-    double DEVICE_MIN_TORQUE = 0.2;
+    double DEVICE_MAX_TORQUE = 0.5;
+    double DEVICE_MIN_TORQUE = 0.3;
     
     // device info
     int device_handle;
@@ -221,7 +221,7 @@ void SteeringFeedback::getTorque(const double &pAct) {
     } else {
         double mul = (pErr >= 0.0) ? 1.0 : -1.0;
 
-        tCorr = -1 * mul * limit(fabs(kDes * pErr), DEVICE_MIN_TORQUE, DEVICE_MAX_TORQUE);
+        tCorr = mul * limit(fabs(kDes * pErr), DEVICE_MIN_TORQUE, DEVICE_MAX_TORQUE);
         atk_len = DEVICE_TIME_STEP;
     }
 }
@@ -229,7 +229,7 @@ void SteeringFeedback::getTorque(const double &pAct) {
 // update input event with writing information to the event file
 void SteeringFeedback::setTorque(const double &torque, const double &attack_length) {
     // set effect
-    ffEffect.u.constant.level = 0x7fff * std::min(torque, DEVICE_MAX_TORQUE);
+    ffEffect.u.constant.level = 0x7fff * torque;
     ffEffect.direction = 0xC000;    
     ffEffect.u.constant.envelope.attack_length = attack_length;    
     ffEffect.u.constant.envelope.fade_length = attack_length;
