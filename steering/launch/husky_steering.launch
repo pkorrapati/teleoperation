@@ -27,7 +27,7 @@
             <param name="timeStep" type="double" value="0.1" />
             <param name="tolerance" type="double" value="0.01" />
             <param name="maxTorque" type="double" value="0.5" />
-            <param name="minTorque" type="double" value="0.3" />            
+            <param name="minTorque" type="double" value="0.25" />            
         </node>
     </group>
 

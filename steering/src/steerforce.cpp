@@ -10,7 +10,7 @@
 class SteeringFeedback {
 
 private:
-    ros::Subscriber sub_target;
+    ros::Subscriber sub_feedback;
     ros::Timer timer;
 
     // rosparam
@@ -56,7 +56,7 @@ private:
 
 
 SteeringFeedback::SteeringFeedback() {
-    ros::NodeHandle ros_node;
+    ros::NodeHandle ros_node("~");
 
     std::string ns = ros_node.getNamespace();
     
@@ -79,9 +79,8 @@ SteeringFeedback::SteeringFeedback() {
 
     ros::Duration(1).sleep();
 
-    timer = ros_node.createTimer(ros::Duration(DEVICE_TIME_STEP), &SteeringFeedback::loop, this);
-    
-    sub_target = ros_node.subscribe(ns + "steer_feeback", 1, &SteeringFeedback::steerFeedback, this);
+    timer = ros_node.createTimer(ros::Duration(DEVICE_TIME_STEP), &SteeringFeedback::loop, this);    
+    sub_feedback = ros_node.subscribe(ns + "steer_feeback", 1, &SteeringFeedback::steerFeedback, this);
 }
 
 SteeringFeedback::~SteeringFeedback() {
