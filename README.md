@@ -58,14 +58,14 @@ sudo apt install ros-<distro>-rosbridge-suite
 sudo apt install ros-<distro>-joystick-drivers
 ```
 
-## Updating the launch file
+## Updating the launch file for Force Feedback
 List connected devices using the following command:
 
 ```console
 cat /proc/bus/input/devices
 ```
-Identify Logitech G29 in the list of devices and note its handlers. <br />Example: event7.<br />
-Update the value of the param "deviceName" in the launch file to: "/dev/input/event7".
+1. Identify Logitech G29 in the list of devices and note its handlers Example: event7.
+2. Update the value of the param "deviceName" in the launch file to: "/dev/input/event7".
 
 ## Launching
 ### Husky with HUD
@@ -124,3 +124,12 @@ sudo chmod +x {downloads}/teleoperation/steering/src/*.py
 ## Operation
 Throttle maps 1:1 with velocity. <br />
 Left and Right Gear Shift pedals change gears. 
+
+## Acknowledgement
+The steering force feedback has device initialization code inspired by the work of https://github.com/kuriatsu
+
+## References
+1. https://www.kernel.org/doc/html/latest/input/ff.html
+2. https://github.com/torvalds/linux/blob/master/include/uapi/linux/input.h
+3. https://stackoverflow.com/questions/33201711/how-to-send-a-rumble-effect-to-a-device-using-python-evdev
+4. https://github.com/kuriatsu/ros-g29-force-feedback

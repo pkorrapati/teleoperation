@@ -31,7 +31,11 @@ private:
     double pDes; // Desired Position
     double kDes; // Desired Spring Rate
     
-    double pErr; 
+    double pErr;
+    double pErr_old; 
+    double dpErr;
+    
+
     double tCorr; // Corrective Torque
     double atk_len;
     
@@ -50,7 +54,7 @@ private:
     void setTorque(const double &torque, const double &attack_length);
     
     // Helpers
-    int testBit(int bit, unsigned char *array);
+    // int testBit(int bit, unsigned char *array);
     double limit(const double &a,const double &a_min,const double &a_max);
 };
 
@@ -65,13 +69,17 @@ SteeringFeedback::SteeringFeedback() {
     ros_node.getParam("tolerance", DEVICE_TOLERANCE);
 
     ros_node.getParam("maxTorque", DEVICE_MAX_TORQUE);
-    ros_node.getParam("minTorque", DEVICE_MIN_TORQUE);    
+    ros_node.getParam("minTorque", DEVICE_MIN_TORQUE); 
     
-    pAct = 0;
+    DEVICE_MIN_TORQUE = limit(DEVICE_MIN_TORQUE, 0.0, 1.0);
+    DEVICE_MAX_TORQUE = limit(DEVICE_MAX_TORQUE, DEVICE_MIN_TORQUE, 1.0);
+    
     pDes = 0;
     kDes = 1;
     
+    pAct = 0;
     pErr = 0;
+    
     tCorr = 0;
     atk_len = 0;
 
@@ -96,8 +104,7 @@ SteeringFeedback::~SteeringFeedback() {
 }
 
 // initialize force feedback device
-void SteeringFeedback::initDevice() {
-    // setup device
+void SteeringFeedback::initDevice() {    
     unsigned char key_bits[1+KEY_MAX/8/sizeof(unsigned char)];
     unsigned char abs_bits[1+ABS_MAX/8/sizeof(unsigned char)];
     unsigned char ff_bits[1+FF_MAX/8/sizeof(unsigned char)];
@@ -106,38 +113,38 @@ void SteeringFeedback::initDevice() {
 
     device_handle = open(DEVICE_NAME.c_str(), O_RDWR|O_NONBLOCK);
     if (device_handle < 0) {
-        std::cout << "ERROR: cannot open device : "<< DEVICE_NAME << std::endl;
+        std::cout << "ERROR: Unable to open device : "<< DEVICE_NAME << std::endl;
         exit(1);
     }
     
     memset(abs_bits, 0, sizeof(abs_bits));
     if (ioctl(device_handle, EVIOCGBIT(EV_ABS, sizeof(abs_bits)), abs_bits) < 0) {
-        std::cout << "ERROR: cannot get abs bits" << std::endl;
+        std::cout << "ERROR: ABS bits unavailable" << std::endl;
         exit(1);
     }
     
     memset(ff_bits, 0, sizeof(ff_bits));
     if (ioctl(device_handle, EVIOCGBIT(EV_FF, sizeof(ff_bits)), ff_bits) < 0) {
-        std::cout << "ERROR: cannot get ff bits" << std::endl;
+        std::cout << "ERROR: FF bits unavailable" << std::endl;
         exit(1);
     }
     
     if (ioctl(device_handle, EVIOCGABS(axis_code), &abs_info) < 0) {
-        std::cout << "ERROR: cannot get axis range" << std::endl;
+        std::cout << "ERROR: Axis unavailablerange" << std::endl;
         exit(1);
     }
 
     axis_max = abs_info.maximum;
     axis_min = abs_info.minimum;
     if (axis_min >= axis_max) {
-        std::cout << "ERROR: axis range has bad value" << std::endl;
+        std::cout << "ERROR: Axis range error" << std::endl;
         exit(1);
     }
 
-    if(!testBit(FF_CONSTANT, ff_bits)) {
-        std::cout << "ERROR: force feedback is not supported" << std::endl;
+    // if(!testBit(FF_CONSTANT, ff_bits)) 
+    if(!((ff_bits[FF_CONSTANT / (sizeof(unsigned char) * 8)] >> (FF_CONSTANT % (sizeof(unsigned char) * 8))) & 1)) {
+        std::cout << "ERROR: Force feedback is not supported by the device" << std::endl;
         exit(1);
-
     }
     
     std::cout << "Device Ready" << std::endl;
@@ -154,15 +161,15 @@ void SteeringFeedback::initDevice() {
         exit(1);
     }
 
-    // init effect and get effect id
+    // Init effect and get effect id
     memset(&ffEffect, 0, sizeof(ffEffect));
 
     ffEffect.type = FF_CONSTANT;
     ffEffect.id = -1; // initial value
     ffEffect.trigger.button = 0;
     ffEffect.trigger.interval = 0;
-    ffEffect.replay.length = 0xffff;  // longest value
-    ffEffect.replay.delay = 0; // delay from write(...)
+    ffEffect.replay.length = 0xffff;  // Values range from 0x0000 to 0xffff
+    ffEffect.replay.delay = 0;        // delay from write(...)
     ffEffect.u.constant.level = 0;
     ffEffect.direction = 0xC000;
     ffEffect.u.constant.envelope.attack_length = 0;
@@ -212,7 +219,8 @@ void SteeringFeedback::loop(const ros::TimerEvent&) {
 }
 
 void SteeringFeedback::getTorque(const double &pAct) {    
-    double pErr = pDes - pAct;
+    pErr = pDes - pAct;
+    dpErr = pErr - pErr_old;
 
     if (fabs(pErr) < DEVICE_TOLERANCE) {
         tCorr = 0.0;
@@ -223,29 +231,25 @@ void SteeringFeedback::getTorque(const double &pAct) {
         tCorr = mul * limit(fabs(kDes * pErr), DEVICE_MIN_TORQUE, DEVICE_MAX_TORQUE);
         atk_len = DEVICE_TIME_STEP;
     }
+
+    pErr_old = pErr;
 }
 
-// update input event with writing information to the event file
-void SteeringFeedback::setTorque(const double &torque, const double &attack_length) {
-    // set effect
+void SteeringFeedback::setTorque(const double &torque, const double &attack_length) {    
     ffEffect.u.constant.level = 0x7fff * torque;
     ffEffect.direction = 0xC000;    
     ffEffect.u.constant.envelope.attack_length = attack_length;    
     ffEffect.u.constant.envelope.fade_length = attack_length;
     
-    // ffEffect.u.constant.envelope.fade_level = 0;
-    // ffEffect.u.constant.envelope.attack_level = 0; /* 0x7fff * force / 2 */
-
-    // upload effect
     if (ioctl(device_handle, EVIOCSFF, &ffEffect) < 0) {
         std::cout << "Failed to upload effect" << std::endl;
     }
 }
 
 // util for initDevice()
-int SteeringFeedback::testBit(int bit, unsigned char *array) {
-    return ((array[bit / (sizeof(unsigned char) * 8)] >> (bit % (sizeof(unsigned char) * 8))) & 1);
-}
+// int SteeringFeedback::testBit(int bit, unsigned char *array) {
+//     return ((array[bit / (sizeof(unsigned char) * 8)] >> (bit % (sizeof(unsigned char) * 8))) & 1);
+// }
 
 double SteeringFeedback::limit(const double &a, const double &a_min, const double &a_max){
     return(std::max(std::min(a, a_max), a_min));
