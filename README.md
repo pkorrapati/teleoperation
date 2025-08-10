@@ -52,7 +52,7 @@ rosdep install steering
 or
 
 ```console
-sudo apt install ros-<distro>-teleop-twist-joy 
+sudo apt install ros-<distro>-joy 
 sudo apt install ros-<distro>-rosbridge-suite
 
 sudo apt install ros-<distro>-joystick-drivers
@@ -122,8 +122,9 @@ sudo chmod +x {downloads}/teleoperation/steering/src/*.py
 ```
 
 ## Operation
-Throttle maps 1:1 with velocity. <br />
-Left and Right Gear Shift pedals change gears. 
+1. Throttle maps 1:1 with velocity.
+2. Left and Right Gear Shift pedals change gears. 
+3. /steer_feedback topic sets the desired location of the wheel and a spring constant that is used to calulate the force experienced as the wheel deviates from the desired location.
 
 ## Acknowledgement
 The steering force feedback has device initialization code inspired by the work of https://github.com/kuriatsu
