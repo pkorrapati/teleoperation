@@ -11,7 +11,7 @@
             <param name="pulseRate" type="int" value="1000" />
         </node>
 
-        <node pkg="steering" type="camfeed.py" name="camfeed">
+        <node pkg="steering" type="remapper.py" name="remapper">
             <param name="camTopic" type="str" value="/cam_node/image_raw/compressed" />
             <param name="rearCamTopic" type="str" value="/usb_cam/image_raw/compressed" />
         </node>
