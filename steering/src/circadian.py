@@ -4,8 +4,6 @@ import rospy
 
 from std_msgs.msg import Int16
 
-pulseRate = 1000
-
 class Circadian:
     def __init__(self):        
         self.ns = rospy.get_namespace()
@@ -13,7 +11,7 @@ class Circadian:
         
         rospy.init_node('circadian')
         
-        pulse = rospy.get_param('~pulseRate', default=pulseRate)        
+        pulse = rospy.get_param('~pulseRate', default=1000)        
 
         self.rate = rospy.Rate(pulse)
         self.pulse.data = pulse

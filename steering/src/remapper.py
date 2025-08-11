@@ -4,7 +4,7 @@ import rospy
 
 from sensor_msgs.msg import CompressedImage
 
-class CamFeed:
+class Remapper:
     def __init__(self):        
         self.ns = rospy.get_namespace()
         rospy.init_node('cam_feed')
@@ -28,7 +28,7 @@ class CamFeed:
 
 if __name__ == '__main__':
     try:
-        cNode = CamFeed()        
+        rNode = Remapper()        
         rospy.spin()
 
     except rospy.ROSInterruptException:
